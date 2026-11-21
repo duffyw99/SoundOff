@@ -156,13 +156,21 @@ vite.config.ts.timestamp-*
 .nx/workspace-data
 .nx/migrate-runs
 
+# ---------------------------------------------------------------
+# SoundOff additions: this is a PUBLIC repo. Never commit secrets.
+# ---------------------------------------------------------------
+
 # Credentials and keys
 *.pem
 *.key
+*.p12
+*.pfx
 *service-account*.json
 serviceAccountKey*.json
 credentials*.json
 .runtimeconfig.json
+secrets/
+.secrets/
 
 # Firebase / Firestore emulator state and exports
 firebase-debug.log*
@@ -171,12 +179,19 @@ ui-debug.log
 emulator-data/
 .firebaserc
 
-# Local tooling and OS files
+# Local database or data dumps (may contain real user data)
+*.sqlite
+*.sqlite3
+*.db
+dumps/
+exports/
+
+# Editor and OS files
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
 
-# Claude Code local settings
+# Claude Code local settings (shared project settings in .claude/settings.json are OK)
 .claude/settings.local.json
