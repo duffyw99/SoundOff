@@ -83,6 +83,7 @@ section when those scripts are real.** CI runs lint, typecheck, and test on ever
 - Reference requirement IDs (for example "implement FR-7.3 and FR-7.4") in commits and PRs.
 - Keep PRs small and focused: one issue, one PR. Branch from `main`; never push directly to `main`.
 - Write tests first for scoring, state machine, URL parsing, and anything touching anonymity.
+- Make sure the pre-commit gitleaks hook is installed (`pre-commit install`) and run `pre-commit run --all-files` before pushing.
 - Run lint, typecheck, and tests before declaring work done. Do not claim something works without running it.
 - Use the Firestore emulator for local and test runs, never a real project's data.
 - Prefer boring, readable code over clever code. Comment the "why", not the "what".

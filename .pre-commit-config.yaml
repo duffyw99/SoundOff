@@ -1,0 +1,12 @@
+# Pre-commit hooks. One-time setup per clone:
+#   pip install pre-commit   (or: brew install pre-commit)
+#   pre-commit install
+# Run on everything at any time:
+#   pre-commit run --all-files
+# Update hook versions occasionally:
+#   pre-commit autoupdate
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
