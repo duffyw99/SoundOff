@@ -1,0 +1,16 @@
+# Code owners are automatically requested for review on matching pull requests.
+# Approval from code owners is only *required* if the branch ruleset enables
+# "Require review from Code Owners". Owners must have write access.
+# The last matching pattern takes precedence.
+
+# Default owner for everything
+*                       @duffyw99
+
+# Security-sensitive files: workflows, repo config, secret-handling rules
+/.github/               @duffyw99
+/.gitignore             @duffyw99
+/.env.example           @duffyw99
+/.pre-commit-config.yaml @duffyw99
+/SECURITY.md            @duffyw99
+/CLAUDE.md              @duffyw99
+/LICENSE                @duffyw99
