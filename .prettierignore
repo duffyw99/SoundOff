@@ -1,0 +1,12 @@
+node_modules
+dist
+dev-dist
+coverage
+package-lock.json
+# Docs, workflows, and licence text are hand-formatted
+docs
+.github
+*.md
+LICENSE
+*.code-workspace
+scripts

@@ -5,7 +5,7 @@ Driving Song" or "Guilty Pleasures"). Everyone anonymously submits a YouTube
 track, the app builds a shuffled shared playlist, you listen and spend points
 on your favorites, and then it reveals who picked what and who voted for what.
 
-> **Status:** early planning. No application code yet.
+> **Status:** early development (Milestone 0). The monorepo skeleton exists; game features are not built yet.
 
 ## Planned stack
 
@@ -26,8 +26,16 @@ Designed to run on free-tier hosting for small private leagues (10 to 20 players
 
 ## Local development
 
-Setup instructions will be added once the project skeleton exists (Milestone 0).
-Copy `.env.example` to `.env` for local configuration. Never commit `.env`.
+Requires Node 22 (see `.nvmrc`).
+
+```sh
+npm ci
+npm run dev      # server: http://localhost:8080/healthz, web: http://localhost:5173
+npm run lint && npm run typecheck && npm test
+```
+
+The server reads `PORT` (default 8080). Copy `.env.example` to `.env` for future
+configuration; never commit `.env`. See `CLAUDE.md` for all commands and conventions.
 
 ## Secret scanning
 

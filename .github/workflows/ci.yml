@@ -27,8 +27,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # The monorepo skeleton does not exist yet. Until a root package.json
-      # is added, the remaining steps are skipped and the job passes.
+      # Build steps are skipped if there is no root package.json.
       - name: Detect project
         id: detect
         run: |
@@ -49,6 +48,10 @@ jobs:
       - name: Install dependencies
         if: steps.detect.outputs.has_project == 'true'
         run: npm ci
+
+      - name: Format check
+        if: steps.detect.outputs.has_project == 'true'
+        run: npm run format:check
 
       - name: Lint
         if: steps.detect.outputs.has_project == 'true'

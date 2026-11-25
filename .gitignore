@@ -195,3 +195,7 @@ Thumbs.db
 
 # Claude Code local settings (shared project settings in .claude/settings.json are OK)
 .claude/settings.local.json
+
+# TypeScript / Vite / PWA build artifacts
+*.tsbuildinfo
+dev-dist/
