@@ -37,7 +37,7 @@ Everything committed, including history, is visible to the world. Therefore:
 - Cloud Scheduler calls `POST /internal/tick` to advance phases and auto-submit ballots
 - YouTube IFrame Player API (client playback), YouTube Data API `videos.list` (server metadata)
 
-Planned layout (created in Milestone 0/1; update this file as it changes):
+Layout:
 
 ```
 web/      React PWA
@@ -48,9 +48,21 @@ docs/     requirements and design docs
 
 ## Commands
 
-The skeleton does not exist yet. Once it does, the root `package.json` will use npm workspaces and
-expose at least: `npm run lint`, `npm run typecheck`, `npm test`, `npm run dev`. **Update this
-section when those scripts are real.** CI runs lint, typecheck, and test on every PR.
+Requires Node 22 (see `.nvmrc`). Run from the repository root (npm workspaces):
+
+```sh
+npm ci                  # install exactly what package-lock.json specifies
+npm run dev             # server on :8080 and web on :5173 (web proxies /healthz and /api to the server)
+npm run lint            # ESLint in every workspace
+npm run typecheck       # tsc --noEmit in every workspace
+npm test                # Vitest in every workspace
+npm run format:check    # Prettier check (use `npm run format` to fix)
+npm run build           # production build of the web app
+```
+
+Run one workspace with `-w`, for example `npm test -w shared`. CI runs format check, lint,
+typecheck, and test on every PR. The server currently runs with `tsx`; a production bundle and
+Dockerfile arrive in M0-7.
 
 ## Non-negotiable rules (architecture)
 

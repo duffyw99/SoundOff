@@ -1,8 +1,6 @@
 # Dependabot configuration.
-# Only github-actions is enabled now because the npm workspace and Dockerfile
-# do not exist yet (Dependabot reports errors for ecosystems with no manifest).
-# Enable the commented blocks as part of the monorepo-skeleton issue (M0) and
-# when the Dockerfile is added.
+# github-actions and npm (workspaces, via the root lockfile) are enabled.
+# Enable the commented Docker block when a Dockerfile is added (M0-7).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -15,17 +13,16 @@ updates:
       actions:
         patterns: ["*"]
 
-  # --- Enable once the root package.json (npm workspaces) exists ---
-  # - package-ecosystem: "npm"
-  #   directory: "/"
-  #   schedule:
-  #     interval: "weekly"
-  #   open-pull-requests-limit: 5
-  #   commit-message:
-  #     prefix: "chore(deps)"
-  #   groups:
-  #     minor-and-patch:
-  #       update-types: ["minor", "patch"]
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
 
   # --- Enable once a Dockerfile exists ---
   # - package-ecosystem: "docker"
