@@ -29,6 +29,19 @@ Designed to run on free-tier hosting for small private leagues (10 to 20 players
 Setup instructions will be added once the project skeleton exists (Milestone 0).
 Copy `.env.example` to `.env` for local configuration. Never commit `.env`.
 
+## Secret scanning
+
+This is a public repository, so secrets must never be committed. Install the
+pre-commit hook once per clone:
+
+```sh
+pip install pre-commit    # or: brew install pre-commit
+pre-commit install
+```
+
+CI also scans the full history of every pull request with gitleaks. If a secret
+is ever committed, rotate it immediately. See `CLAUDE.md` and `SECURITY.md`.
+
 ## License
 
 [GNU General Public License v3.0](LICENSE)
