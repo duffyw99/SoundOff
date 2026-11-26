@@ -166,13 +166,16 @@
       <section>
         <label for="ids">Queue: YouTube links or 11-character video IDs, one per line</label>
         <textarea id="ids" rows="7" spellcheck="false">
+M7lc1UVf-VE
 dQw4w9WgXcQ
 9bZkp7q19f0
 kJQP7kiw5Fk
 JGwWNGJdvx8
 fJ9rUzIMcZQ</textarea>
         <p class="muted">
-          Defaults are well-known videos. Replace freely, and add one with embedding disabled and
+          The first line is the sample video from YouTube&rsquo;s own IFrame API documentation. It
+          is a control: if it also fails, the problem is the browser or page origin, not the videos.
+          The rest are well-known videos. Replace freely, and add one with embedding disabled and
           one region-blocked if you know of any.
         </p>
         <label for="mode">Playback mode</label>
@@ -247,8 +250,8 @@ fJ9rUzIMcZQ</textarea>
           2: 'invalid video id',
           5: 'html5 player error',
           100: 'not found or private',
-          101: 'embedding disabled by owner',
-          150: 'embedding disabled by owner',
+          101: 'embedding blocked (owner setting, or this page origin is not accepted)',
+          150: 'embedding blocked (owner setting, or this page origin is not accepted)',
           153: 'player configuration error (often a missing referrer)',
         };
 
@@ -308,6 +311,14 @@ fJ9rUzIMcZQ</textarea>
           navigator.userAgent;
         log('page loaded; display=' + (standalone ? 'standalone' : 'browser'));
         log('UA: ' + navigator.userAgent);
+        log(
+          'origin=' +
+            location.origin +
+            ' secureContext=' +
+            window.isSecureContext +
+            ' referrer=' +
+            (document.referrer || '(none)'),
+        );
 
         // ---------- URL parsing ----------
         var ID_RE = /^[A-Za-z0-9_-]{11}$/;
@@ -622,19 +633,31 @@ fJ9rUzIMcZQ</textarea>
           lines = [];
           $('log').value = '';
         });
+        function fallbackCopy(el) {
+          el.focus();
+          el.select();
+          el.setSelectionRange(0, el.value.length);
+          var ok = false;
+          try {
+            ok = document.execCommand('copy');
+          } catch (e) {
+            ok = false;
+          }
+          log(ok ? 'log copied (fallback method)' : 'copy failed; text selected, copy it manually');
+        }
         $('copy').addEventListener('click', function () {
           var el = $('log');
-          var done = function () {
-            log('log copied to clipboard');
-          };
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(el.value).then(done, function () {
-              el.select();
-              log('copy failed; text selected, copy it manually');
-            });
+            navigator.clipboard.writeText(el.value).then(
+              function () {
+                log('log copied to clipboard');
+              },
+              function () {
+                fallbackCopy(el);
+              },
+            );
           } else {
-            el.select();
-            log('clipboard unavailable; text selected, copy it manually');
+            fallbackCopy(el);
           }
         });
         $('mode').addEventListener('change', function () {
