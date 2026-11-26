@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>SoundOff S1 playback spike</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #14121f;
+        --panel: #1f1c30;
+        --fg: #f3f0ff;
+        --muted: #a9a3c7;
+        --accent: #8f7bff;
+        --bad: #ff8a8a;
+        --ok: #7ee2a8;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.4;
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: max(1rem, env(safe-area-inset-top)) 1rem max(2rem, env(safe-area-inset-bottom));
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1rem;
+        margin: 1.5rem 0 0.5rem;
+      }
+      p,
+      label,
+      li {
+        font-size: 0.9rem;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      section {
+        margin-top: 1rem;
+      }
+      textarea,
+      select,
+      input {
+        width: 100%;
+        background: var(--panel);
+        color: var(--fg);
+        border: 1px solid #3a3558;
+        border-radius: 8px;
+        padding: 0.6rem;
+        font: inherit;
+      }
+      textarea {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 0.8rem;
+      }
+      button {
+        background: var(--accent);
+        color: #120f24;
+        border: 0;
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        font: inherit;
+        font-weight: 600;
+        min-height: 44px;
+      }
+      button.secondary {
+        background: var(--panel);
+        color: var(--fg);
+        border: 1px solid #3a3558;
+      }
+      button:disabled {
+        opacity: 0.45;
+      }
+      button:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 2px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+      }
+      .player-wrap {
+        aspect-ratio: 16 / 9;
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 1rem;
+      }
+      .player-wrap iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      #tracks {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0;
+      }
+      #tracks li {
+        margin-bottom: 0.35rem;
+      }
+      #tracks button {
+        width: 100%;
+        text-align: left;
+        background: var(--panel);
+        color: var(--fg);
+        border: 1px solid #3a3558;
+        font-weight: 400;
+      }
+      #tracks li[data-current='true'] button {
+        border-color: var(--accent);
+      }
+      #tracks li[data-status='failed'] button {
+        border-color: var(--bad);
+      }
+      #notice {
+        margin-top: 0.75rem;
+        color: var(--bad);
+      }
+      #notice a {
+        color: var(--fg);
+      }
+      #env {
+        background: var(--panel);
+        border-radius: 8px;
+        padding: 0.6rem;
+        font-size: 0.8rem;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>S1 playback spike</h1>
+      <p class="muted">
+        Throwaway test page for milestone M0-4. It tests whether in-app YouTube playback keeps
+        working when the phone is locked or the app is in the background. Follow the steps in
+        <code>docs/spikes/s1-playback.md</code> and paste the log into the results.
+      </p>
+
+      <div id="env"></div>
+
+      <section>
+        <label for="ids">Queue: YouTube links or 11-character video IDs, one per line</label>
+        <textarea id="ids" rows="7" spellcheck="false">
+dQw4w9WgXcQ
+9bZkp7q19f0
+kJQP7kiw5Fk
+JGwWNGJdvx8
+fJ9rUzIMcZQ</textarea>
+        <p class="muted">
+          Defaults are well-known videos. Replace freely, and add one with embedding disabled and
+          one region-blocked if you know of any.
+        </p>
+        <label for="mode">Playback mode</label>
+        <select id="mode">
+          <option value="queue">Our queue (loadVideoById, we advance tracks)</option>
+          <option value="native">Native playlist (loadPlaylist with a list of IDs)</option>
+        </select>
+        <div class="row">
+          <button id="load" type="button" disabled>Load queue</button>
+        </div>
+      </section>
+
+      <div class="player-wrap"><div id="player"></div></div>
+      <div id="notice" role="status"></div>
+
+      <div class="row" id="controls">
+        <button id="prev" class="secondary" type="button" disabled>Previous</button>
+        <button id="toggle" type="button" disabled>Play</button>
+        <button id="next" class="secondary" type="button" disabled>Next</button>
+      </div>
+
+      <ol id="tracks"></ol>
+
+      <h2>Markers</h2>
+      <p class="muted">Tap a marker right before and after each action so the log lines up.</p>
+      <div class="row">
+        <button class="secondary mark" type="button" data-mark="LOCKING SCREEN NOW">
+          Locking screen
+        </button>
+        <button class="secondary mark" type="button" data-mark="UNLOCKED, BACK ON PAGE">
+          Unlocked
+        </button>
+        <button class="secondary mark" type="button" data-mark="SWITCHING TO ANOTHER APP">
+          Switching app
+        </button>
+        <button class="secondary mark" type="button" data-mark="BACK FROM ANOTHER APP">
+          Back from app
+        </button>
+        <button class="secondary mark" type="button" data-mark="SWITCHING TAB">
+          Switching tab
+        </button>
+        <button class="secondary mark" type="button" data-mark="BACK TO THIS TAB">
+          Back to tab
+        </button>
+      </div>
+      <div class="row">
+        <input id="note" type="text" placeholder="Free-text note (what you heard, what you saw)" />
+        <button id="addNote" class="secondary" type="button">Add note</button>
+      </div>
+
+      <h2>Log</h2>
+      <textarea id="log" rows="14" readonly spellcheck="false"></textarea>
+      <div class="row">
+        <button id="copy" type="button">Copy log</button>
+        <button id="clear" class="secondary" type="button">Clear log</button>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var STATE_NAMES = {
+          '-1': 'unstarted',
+          0: 'ended',
+          1: 'playing',
+          2: 'paused',
+          3: 'buffering',
+          5: 'cued',
+        };
+        var ERROR_NAMES = {
+          2: 'invalid video id',
+          5: 'html5 player error',
+          100: 'not found or private',
+          101: 'embedding disabled by owner',
+          150: 'embedding disabled by owner',
+          153: 'player configuration error (often a missing referrer)',
+        };
+
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var player = null;
+        var ready = false;
+        var queue = [];
+        var index = -1;
+        var mode = 'queue';
+        var lastState = -2;
+        var hiddenAt = null;
+        var startedAt = Date.now();
+        var lines = [];
+
+        // ---------- logging ----------
+        function stamp() {
+          return ((Date.now() - startedAt) / 1000).toFixed(1).padStart(7, ' ') + 's';
+        }
+        function log(msg) {
+          lines.push(stamp() + '  ' + msg);
+          if (lines.length > 600) lines.shift();
+          var el = $('log');
+          el.value = lines.join('\n');
+          el.scrollTop = el.scrollHeight;
+        }
+        function safeTime() {
+          try {
+            return player && ready ? player.getCurrentTime() : null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function safeState() {
+          try {
+            return player && ready ? player.getPlayerState() : null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function stateName(s) {
+          return s === null ? 'n/a' : STATE_NAMES[s] || String(s);
+        }
+        function fmt(t) {
+          return t === null ? 'n/a' : t.toFixed(1) + 's';
+        }
+
+        // ---------- environment ----------
+        var standalone =
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+          window.navigator.standalone === true;
+        $('env').textContent =
+          'Display mode: ' +
+          (standalone ? 'STANDALONE (installed/home-screen)' : 'browser tab') +
+          ' | ' +
+          navigator.userAgent;
+        log('page loaded; display=' + (standalone ? 'standalone' : 'browser'));
+        log('UA: ' + navigator.userAgent);
+
+        // ---------- URL parsing ----------
+        var ID_RE = /^[A-Za-z0-9_-]{11}$/;
+        function parseId(text) {
+          var t = text.trim();
+          if (!t) return null;
+          if (ID_RE.test(t)) return t;
+          var u;
+          try {
+            u = new URL(t);
+          } catch (e) {
+            return null;
+          }
+          var host = u.hostname.replace(/^www\./, '');
+          var id = null;
+          if (host === 'youtu.be') {
+            id = u.pathname.slice(1).split('/')[0];
+          } else if (/(^|\.)youtube\.com$/.test(host)) {
+            id = u.searchParams.get('v');
+            if (!id) {
+              var m = u.pathname.match(/^\/(?:shorts|embed|live)\/([^/?#]+)/);
+              id = m ? m[1] : null;
+            }
+          }
+          return id && ID_RE.test(id) ? id : null;
+        }
+
+        // ---------- queue UI ----------
+        function render() {
+          var ol = $('tracks');
+          ol.textContent = '';
+          queue.forEach(function (tr, i) {
+            var li = document.createElement('li');
+            li.dataset.current = String(i === index);
+            li.dataset.status = tr.status;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent =
+              i + 1 + '. ' + (tr.title || tr.id) + (tr.status === 'failed' ? ' (failed)' : '');
+            b.addEventListener('click', function () {
+              jumpTo(i);
+            });
+            li.appendChild(b);
+            ol.appendChild(li);
+          });
+        }
+        function setNotice(html) {
+          $('notice').innerHTML = html || '';
+        }
+        function ytLink(id) {
+          var a = document.createElement('a');
+          a.href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id);
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = 'Open on YouTube';
+          return a;
+        }
+        function showFailure(id, text) {
+          var n = $('notice');
+          n.textContent = text + ' ';
+          n.appendChild(ytLink(id));
+        }
+
+        function loadQueue() {
+          var raw = $('ids').value.split('\n');
+          queue = [];
+          raw.forEach(function (line) {
+            if (!line.trim()) return;
+            var id = parseId(line);
+            if (id) queue.push({ id: id, title: '', status: '' });
+            else log('could not parse line: ' + line.trim());
+          });
+          mode = $('mode').value;
+          index = -1;
+          lastState = -2;
+          setNotice('');
+          log('queue loaded: ' + queue.length + ' tracks, mode=' + mode);
+          if (player && ready) {
+            try {
+              player.stopVideo();
+            } catch (e) {
+              /* ignore */
+            }
+          }
+          render();
+          updateButtons();
+        }
+
+        // ---------- playback ----------
+        function ids() {
+          return queue.map(function (t) {
+            return t.id;
+          });
+        }
+        function jumpTo(i) {
+          if (!ready || i < 0 || i >= queue.length) return;
+          setNotice('');
+          if (mode === 'native') {
+            log('native: loadPlaylist from index ' + i);
+            player.loadPlaylist(ids(), i, 0);
+          } else {
+            index = i;
+            log('queue: loadVideoById #' + (i + 1) + ' ' + queue[i].id);
+            player.loadVideoById(queue[i].id);
+          }
+          render();
+        }
+        function advance(step) {
+          if (mode === 'native') {
+            if (step > 0) player.nextVideo();
+            else player.previousVideo();
+          } else {
+            jumpTo(index + step);
+          }
+        }
+        function togglePlay() {
+          if (!ready || !queue.length) return;
+          var s = safeState();
+          if (index < 0 && mode === 'queue') {
+            jumpTo(0);
+          } else if (mode === 'native' && (s === -1 || s === null || s === 5 || index < 0)) {
+            if (lastState === -2) {
+              index = 0;
+              log('native: loadPlaylist from the start');
+              player.loadPlaylist(ids(), 0, 0);
+            } else {
+              player.playVideo();
+            }
+          } else if (s === 1 || s === 3) {
+            player.pauseVideo();
+          } else {
+            player.playVideo();
+          }
+        }
+        function updateButtons() {
+          var has = ready && queue.length > 0;
+          $('load').disabled = !ready;
+          $('prev').disabled = !has;
+          $('next').disabled = !has;
+          $('toggle').disabled = !has;
+        }
+
+        // ---------- player events ----------
+        function onStateChange(e) {
+          lastState = e.data;
+          var extra = '';
+          if (mode === 'native') {
+            try {
+              var pi = player.getPlaylistIndex();
+              if (typeof pi === 'number' && pi >= 0) {
+                index = pi;
+                extra = ' (playlist index ' + (pi + 1) + ')';
+              }
+            } catch (err) {
+              /* ignore */
+            }
+          }
+          log('state: ' + stateName(e.data) + extra);
+          if (e.data === 1) {
+            try {
+              var d = player.getVideoData();
+              if (queue[index]) {
+                queue[index].title = d && d.title ? d.title : queue[index].title;
+                queue[index].status = 'played';
+              }
+            } catch (err) {
+              /* ignore */
+            }
+            $('toggle').textContent = 'Pause';
+          } else if (e.data === 2 || e.data === 0 || e.data === -1) {
+            $('toggle').textContent = 'Play';
+          }
+          if (e.data === 0 && mode === 'queue') {
+            if (index + 1 < queue.length) {
+              log('track ended; auto-advancing');
+              jumpTo(index + 1);
+            } else {
+              log('queue finished');
+            }
+          }
+          render();
+        }
+        function onError(e) {
+          var name = ERROR_NAMES[e.data] || 'unknown error';
+          var failedIndex = mode === 'native' ? safeIndex() : index;
+          var tr = queue[failedIndex];
+          log('ERROR ' + e.data + ' (' + name + ') on track #' + (failedIndex + 1));
+          if (tr) tr.status = 'failed';
+          if (mode === 'queue') {
+            if (index + 1 < queue.length) {
+              log('skipping to next track');
+              jumpTo(index + 1);
+            }
+          } else {
+            try {
+              player.nextVideo();
+              log('native: nextVideo after error');
+            } catch (err) {
+              /* ignore */
+            }
+          }
+          // Show the notice last: jumpTo() clears it when it skips to the next track.
+          if (tr) {
+            showFailure(tr.id, 'Track ' + (failedIndex + 1) + ' cannot play here: ' + name + '.');
+          }
+          render();
+        }
+        function safeIndex() {
+          try {
+            var pi = player.getPlaylistIndex();
+            return typeof pi === 'number' && pi >= 0 ? pi : index;
+          } catch (e) {
+            return index;
+          }
+        }
+
+        window.onYouTubeIframeAPIReady = function () {
+          log('YouTube IFrame API loaded');
+          player = new window.YT.Player('player', {
+            width: '100%',
+            height: '100%',
+            playerVars: { playsinline: 1, rel: 0 },
+            events: {
+              onReady: function () {
+                ready = true;
+                log('player ready');
+                updateButtons();
+              },
+              onStateChange: onStateChange,
+              onError: onError,
+            },
+          });
+        };
+        var apiScript = document.createElement('script');
+        apiScript.src = 'https://www.youtube.com/iframe_api';
+        apiScript.onerror = function () {
+          log('FAILED to load the YouTube IFrame API script (offline or blocked?)');
+        };
+        document.head.appendChild(apiScript);
+
+        // ---------- background / lifecycle evidence ----------
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) {
+            hiddenAt = { wall: Date.now(), t: safeTime(), s: safeState() };
+            log('PAGE HIDDEN. state=' + stateName(hiddenAt.s) + ' position=' + fmt(hiddenAt.t));
+          } else {
+            var t = safeTime();
+            var s = safeState();
+            var msg = 'PAGE VISIBLE. state=' + stateName(s) + ' position=' + fmt(t);
+            if (hiddenAt && t !== null && hiddenAt.t !== null) {
+              var wall = (Date.now() - hiddenAt.wall) / 1000;
+              var adv = t - hiddenAt.t;
+              msg +=
+                ' | hidden for ' + wall.toFixed(1) + 's, position advanced ' + adv.toFixed(1) + 's';
+              msg +=
+                Math.abs(adv - wall) < 3 && hiddenAt.s === 1
+                  ? '  => PLAYBACK CONTINUED IN BACKGROUND (likely)'
+                  : '  => playback did NOT keep pace (paused or stalled)';
+            }
+            log(msg);
+            hiddenAt = null;
+          }
+        });
+        window.addEventListener('pagehide', function () {
+          log('pagehide');
+        });
+        window.addEventListener('pageshow', function (e) {
+          log('pageshow persisted=' + e.persisted);
+        });
+        window.addEventListener('blur', function () {
+          log('window blur');
+        });
+        window.addEventListener('focus', function () {
+          log('window focus');
+        });
+        document.addEventListener('freeze', function () {
+          log('page lifecycle: freeze');
+        });
+        document.addEventListener('resume', function () {
+          log('page lifecycle: resume');
+        });
+        setInterval(function () {
+          if (!ready) return;
+          var s = safeState();
+          if (s === 1 || s === 3) {
+            log('tick state=' + stateName(s) + ' position=' + fmt(safeTime()));
+          }
+        }, 5000);
+
+        // ---------- wiring ----------
+        $('load').addEventListener('click', loadQueue);
+        $('toggle').addEventListener('click', togglePlay);
+        $('prev').addEventListener('click', function () {
+          advance(-1);
+        });
+        $('next').addEventListener('click', function () {
+          advance(1);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('.mark'), function (b) {
+          b.addEventListener('click', function () {
+            log('MARK: ' + b.dataset.mark);
+          });
+        });
+        $('addNote').addEventListener('click', function () {
+          var v = $('note').value.trim();
+          if (v) {
+            log('NOTE: ' + v);
+            $('note').value = '';
+          }
+        });
+        $('clear').addEventListener('click', function () {
+          lines = [];
+          $('log').value = '';
+        });
+        $('copy').addEventListener('click', function () {
+          var el = $('log');
+          var done = function () {
+            log('log copied to clipboard');
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(el.value).then(done, function () {
+              el.select();
+              log('copy failed; text selected, copy it manually');
+            });
+          } else {
+            el.select();
+            log('clipboard unavailable; text selected, copy it manually');
+          }
+        });
+        $('mode').addEventListener('change', function () {
+          log('mode changed to ' + $('mode').value + '; press "Load queue" to apply');
+        });
+
+        loadQueue();
+      })();
+    </script>
+  </body>
+</html>
