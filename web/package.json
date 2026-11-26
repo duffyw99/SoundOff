@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:lan": "vite --host"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^8.0.0",
