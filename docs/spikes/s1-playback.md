@@ -1,7 +1,7 @@
 # Spike S1: YouTube IFrame playback on real devices
 
 **Issue:** M0-4 (#5) **Refs:** FR-6.2 to FR-6.5, R1, R2
-**Status:** embed-origin question answered; background-playback results not yet recorded.
+**Status:** embed-origin answered; Android Firefox background result recorded (fails); Chrome, iOS and wake-lock results pending.
 
 ## Goal
 
@@ -32,6 +32,39 @@ Conclusions:
 - Error 150's usual label ("embedding disabled by owner") is misleading when the origin is the
   cause. The page now says so.
 - Never test playback from an IP-address origin. Develop on `localhost`.
+
+### Background playback (Android Firefox 160, Android 14, HTTPS page)
+
+On every action that hides the page, the player paused within about 0.1 seconds, and the position did
+not advance:
+
+| Action | Result |
+| --- | --- |
+| Lock the screen | Paused. Hidden 12.8s, position advanced -0.1s |
+| Switch to another app | Paused. Hidden 12.5s, position advanced 0.0s |
+| Switch browser tab | Paused. Hidden 10.3s, position advanced -0.2s |
+
+Playback only resumed when the player was started again after returning to the page. The
+home-screen link test was inconclusive: the spike page has no web app manifest, so the shortcut simply
+reopened the browser (Display mode stayed "browser"). A real installed-app test would need a manifest,
+icons and a service worker, and see the policy note below before investing in it.
+
+### Policy note: background play is not allowed for API clients
+
+YouTube's developer policy guide lists allowing "background play of the YouTube video player" as a
+prohibited example, including letting videos keep playing when the API client's window is closed or
+minimized (https://developers.google.com/youtube/terms/developer-policies-guide). The observed pause
+on hide is consistent with that. In-app listening therefore means **screen on, app in the foreground**,
+and background playback should not be treated as a feature to engineer around. Re-check the current
+policy text before launch.
+
+The same guidance asks apps to show a privacy policy, say that they use YouTube API Services, and link
+Google's privacy policy. Add this to the requirements (NFR-3).
+
+### Mitigation under test: Screen Wake Lock
+
+Because the screen must stay on, the page has a "Keep screen awake while playing" option using the
+Screen Wake Lock API. It needs a secure context (HTTPS) and browser support. Untested so far.
 
 ## The test page
 
@@ -84,6 +117,10 @@ Use the default queue unless noted. Tap **Markers** just before and just after e
    audio continues and whether lock-screen or car controls work.
 8. Repeat steps 3 and 4 in **Native playlist** mode on the platforms where Our queue failed.
 9. **Visibility:** confirm the video is visible and unobscured whenever playing (FR-6.4).
+10. **Wake lock:** with "Keep screen awake" ticked, start playback and leave the phone untouched,
+    screen on, for longer than its screen timeout (3 to 5 minutes). Record whether the screen stayed
+    on, whether audio kept playing, and what the log says (`wakeLock: acquired`, `released`, or an
+    error). Then untick it, repeat, and compare.
 
 ## Results matrix
 
@@ -92,6 +129,7 @@ playing and the log verdict says so.
 
 | Platform | Starts on tap | Auto-advance | Screen lock continues | Switch app continues | Switch tab continues | Error skip | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| Android Firefox 160 (browser tab, HTTPS) | PASS | not recorded | FAIL (paused) | FAIL (paused) | FAIL (paused) | PASS (skipped failing track) | Android 14. Wake lock untested. |
 | iOS Safari (browser tab) | TBD | TBD | TBD | TBD | TBD | TBD | |
 | iOS home-screen app | TBD | TBD | TBD | TBD | TBD | TBD | |
 | Android Chrome (browser tab) | TBD | TBD | TBD | TBD | TBD | TBD | |
@@ -106,13 +144,31 @@ Do not include personal information.
 
 Paste the copied logs here, one fenced block per platform. Trim to the relevant lines.
 
+Android Firefox 160, Android 14, HTTPS page (trimmed):
+
 ```
-(none yet)
+   70.6s  MARK: LOCKING SCREEN NOW (earlier marks omitted)
+   70.6s  PAGE HIDDEN. state=playing position=15.3s
+   70.7s  state: paused
+   83.4s  PAGE VISIBLE. state=paused position=15.2s | hidden for 12.8s, position advanced -0.1s  => playback did NOT keep pace
+  101.4s  PAGE HIDDEN. state=playing position=21.7s
+  101.5s  state: paused
+  113.9s  PAGE VISIBLE. state=paused position=21.7s | hidden for 12.5s, position advanced -0.0s  => playback did NOT keep pace
+  124.2s  PAGE HIDDEN. state=playing position=26.1s
+  124.2s  state: paused
+  134.5s  PAGE VISIBLE. state=paused position=25.8s | hidden for 10.3s, position advanced -0.2s  => playback did NOT keep pace
 ```
+
+Android Chrome, iOS Safari, desktop, and wake-lock logs: _pending_.
 
 ## Conclusions
 
-_To be completed after testing._
+_Provisional, from Android Firefox only. Update after Chrome, iOS and wake-lock results._
+
+- Embedded playback pauses whenever the page is hidden (screen lock, app switch, tab switch), and
+  background play is not allowed for API clients anyway. Plan for **foreground, screen-on listening**.
+- Music videos embed fine from a real HTTPS hostname; per-video exceptions still need handling.
+- Open: do Chrome and iOS behave the same? Does the wake lock keep the screen on and music playing?
 
 - Does in-app playback survive screen lock and app switching on iOS? On Android?
 - Is Our queue or Native playlist more reliable?
@@ -127,7 +183,10 @@ _To be completed after testing._
 | Fails on both when locked, works while the screen is on | Same as above. Position the game as "listen with the screen on", and prioritise the playlist export for people who want background listening. |
 | Fails or is unreliable even with the screen on | Re-plan playback before Milestone 1. Options: playlist export as the primary path, or a different approach. |
 
-Embedding itself is no longer the main concern (see Findings). The decision now rests mainly on
-background and screen-lock behavior.
+Embedding itself is no longer the main concern (see Findings). **Provisional decision:** the "fails
+when hidden" rows apply. Position the game as "listen with the screen on" (natural, since voting happens
+in the app while listening), use the wake lock if it tests well, and keep "Open on YouTube" per track.
+Whether to move the host-only YouTube playlist export into v1, for listening away from the app, is
+the open call for M0-9.
 
 Record the final decision in `docs/spikes/m0-decision.md` (M0-9).

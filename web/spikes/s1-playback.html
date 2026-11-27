@@ -197,6 +197,13 @@ fJ9rUzIMcZQ</textarea>
         <button id="next" class="secondary" type="button" disabled>Next</button>
       </div>
 
+      <p>
+        <label>
+          <input id="wl" type="checkbox" checked style="width: auto" />
+          Keep screen awake while playing (Screen Wake Lock)
+        </label>
+      </p>
+
       <ol id="tracks"></ol>
 
       <h2>Markers</h2>
@@ -461,6 +468,42 @@ fJ9rUzIMcZQ</textarea>
           $('toggle').disabled = !has;
         }
 
+        // ---------- screen wake lock ----------
+        var wakeLock = null;
+        var wlWarned = false;
+        function wlAcquire() {
+          if (!$('wl').checked || wakeLock) return;
+          if (!('wakeLock' in navigator)) {
+            if (!wlWarned) {
+              log('wakeLock: not supported in this browser or context');
+              wlWarned = true;
+            }
+            return;
+          }
+          navigator.wakeLock.request('screen').then(
+            function (sentinel) {
+              wakeLock = sentinel;
+              log('wakeLock: acquired');
+              sentinel.addEventListener('release', function () {
+                log('wakeLock: released');
+                wakeLock = null;
+              });
+            },
+            function (err) {
+              log('wakeLock: request failed: ' + (err && err.name) + ' ' + (err && err.message));
+            },
+          );
+        }
+        function wlRelease() {
+          if (wakeLock) {
+            var w = wakeLock;
+            wakeLock = null;
+            w.release().catch(function () {
+              /* ignore */
+            });
+          }
+        }
+
         // ---------- player events ----------
         function onStateChange(e) {
           lastState = e.data;
@@ -488,8 +531,10 @@ fJ9rUzIMcZQ</textarea>
               /* ignore */
             }
             $('toggle').textContent = 'Pause';
+            wlAcquire();
           } else if (e.data === 2 || e.data === 0 || e.data === -1) {
             $('toggle').textContent = 'Play';
+            wlRelease();
           }
           if (e.data === 0 && mode === 'queue') {
             if (index + 1 < queue.length) {
@@ -580,6 +625,7 @@ fJ9rUzIMcZQ</textarea>
             }
             log(msg);
             hiddenAt = null;
+            if (s === 1 || s === 3) wlAcquire();
           }
         });
         window.addEventListener('pagehide', function () {
@@ -658,6 +704,13 @@ fJ9rUzIMcZQ</textarea>
             );
           } else {
             fallbackCopy(el);
+          }
+        });
+        $('wl').addEventListener('change', function () {
+          if (!$('wl').checked) {
+            wlRelease();
+          } else if (lastState === 1) {
+            wlAcquire();
           }
         });
         $('mode').addEventListener('change', function () {
